@@ -72,6 +72,11 @@ class Movie:
             year = self.start_year
         else:
             year = f"{self.start_year} - {self.end_year}"
+
+        if self.runtime == 0:
+            runtime = ""
+        else:
+            runtime = str(self.runtime) + " min"
         print(f"""
 Title: {self.title}
 Description: {self.description}
@@ -84,10 +89,21 @@ Rating: {self.rating}
     def get_filtered_table_random_id(cls,filter=""):
         if filter == "":
             sql_count = "SELECT COUNT(*) FROM movies"
+            sql_query = "SELECT id FROM movies"
         else: 
-            sql_count = f"SELECT COUNT(*) FROM movies WHERE {filter}"    
+            sql_count = f"SELECT COUNT(*) FROM movies WHERE {filter}"
+            sql_query = f"SELECT id FROM movies WHERE {filter}"
         table_len = cursor.execute(sql_count).fetchone()[0]
-        return random.randint(1,table_len)
+
+        if table_len == 0:
+            raise IndexError("There are no results with the given filters, please try again.")
+
+        else:
+            random_num = random.randint(0,table_len-1)
+            id_list = cursor.execute(sql_query).fetchall()
+            print(id_list)
+            print(random_num)
+            return id_list[random_num][0]
 
     @classmethod
     def get_filtered_random_movie(cls):
@@ -106,74 +122,74 @@ Rating: {self.rating}
 
   
     @classmethod
-    def basic_filter_movies(self,year,certificate,runtime,genre,tv,rating):
+    def basic_filter_movies(self,year,certificate,runtime,genre,rating):
 
         #year filter
         if year == '1':
-            year_filter = "end_year <= 1990"
+            year_filter = "(end_year <= 1990)"
         elif year =='2':
-            year_filter = "1990 < start_year <= 2000 OR 1990 < end_year <= 2000"
+            year_filter = "((start_year > 1990 AND start_year <= 2000) OR (1990 >end_year AND end_year <= 2000))"
         elif year =='3':
-            year_filter = "2000 < start_year <= 2010 OR 2000 < end_year <= 2010"
+            year_filter = "((start_year > 2000 AND start_year <= 2010) OR (end_year > 2000 AND end_year <= 2010))"
         elif year=='4':
-            year_filter = "2010 < start_year <= 2020 OR 2010 < end_year <= 2020"
+            year_filter = "((start_year > 2010 AND start_year <= 2020) OR (end_year > 2010 AND end_year <= 2020))"
         elif year=='5':
-            year_filter = "end_year > 2020"
+            year_filter = "(end_year > 2020)"
         else:
             year_filter = ""
             
         #certificate filter
         if certificate == '1':
-            certificate_filter = 'certificate = "TV-PG" OR certificate = "PG" OR certificate = "TV-Y7-FV" OR certificate = "TV-G" OR \
-            certificate = "G" OR certificate = "12" OR certificate = "TV-Y" OR certificate = "TV-Y7" OR certificate = "E10+"'
+            certificate_filter = '(certificate = "TV-PG" OR certificate = "PG" OR certificate = "TV-Y7-FV" OR certificate = "TV-G" OR \
+            certificate = "G" OR certificate = "12" OR certificate = "TV-Y" OR certificate = "TV-Y7" OR certificate = "E10+")'
         elif certificate == '2':
-            certificate_filter = "certificate = 'TV-14' OR certificate = 'PG-13'"
+            certificate_filter = "(certificate = 'TV-14' OR certificate = 'PG-13')"
         elif certificate == '3':
-            certificate_filter = 'certificate = "TV-MA" OR certificate = "NC-17" OR certificate = "R" OR certificate = "M" OR certificate ="MA-17"'
+            certificate_filter = '(certificate = "TV-MA" OR certificate = "NC-17" OR certificate = "R" OR certificate = "M" OR certificate ="MA-17")'
         else:
             certificate_filter = ""
 
         #runtime filter
         if runtime == '1':
-            runtime_filter = "runtime <= 60"
+            runtime_filter = "(runtime <= 60)"
         elif runtime == '2':
-            runtime_filter = "60 < runtime <= 120"
+            runtime_filter = "(runtime > 60 AND runtime <= 120)"
         elif runtime == '3':
-            runtime_filter = "120 <runtime <= 150"
+            runtime_filter = "(runtime > 120 AND runtime <= 150)"
         elif runtime == '4':
-            runtime_filter = "runtime > 150"
+            runtime_filter = "(runtime > 150)"
         else:
             runtime_filter = ""
 
         #genre filter
         if genre == '1':
-            genre_filter = "genre LIKE '%Comedy%'"
+            genre_filter = "(genre LIKE '%Comedy%')"
         elif genre == '2':
-            genre_filter = "genre LIKE '%Drama%'"
+            genre_filter = "(genre LIKE '%Drama%')"
         elif genre == '3':
-            genre_filter = "genre LIKE '%Action%'"
+            genre_filter = "(genre LIKE '%Action%')"
         elif genre == '4':
-            genre_filter = "genre LIKE '%Romance%'"
+            genre_filter = "(genre LIKE '%Romance%')"
         elif genre == '5':
-            genre_filter = "genre LIKE '%Thriller%'"
+            genre_filter = "(genre LIKE '%Thriller%')"
         elif genre == '6':
-            genre_filter = "genre LIKE '%Horror%'"
+            genre_filter = "(genre LIKE '%Horror%')"
         elif genre == '7':
-            genre_filter = "genre LIKE '%Musical%'"
+            genre_filter = "(genre LIKE '%Musical%')"
         else:
             genre_filter = ""
         
         #rating filter
         if rating == '1':
-            rating_filter = "rating >= 9"
+            rating_filter = "(rating >= 9)"
         elif rating == '2':
-            rating_filter = "8 <= rating < 9"
+            rating_filter = "(rating >= 8 AND rating < 9)"
         elif rating == '3':
-            rating_filter = "7 <= rating < 8"
+            rating_filter = "(rating >= 7 AND rating < 8)"
         elif rating == '4':
-            rating_filter = "6 <= rating < 7"
+            rating_filter = "(rating >= 6 AND rating < 7)"
         elif rating == '5':
-            rating_filter = "rating < 6"
+            rating_filter = "(rating < 6)"
         else:
             rating_filter = ""
 
@@ -186,8 +202,6 @@ Rating: {self.rating}
             filter.append(runtime_filter)
         if len(genre_filter)> 0:
             filter.append(genre_filter)
-        if len(tv_filter)> 0:
-            filter.append(tv_filter)
         if len(rating_filter)> 0:
             filter.append(rating_filter)
         
@@ -273,6 +287,7 @@ Select a rating on a scale of 10:
 
     if start == '1':
         Movie.get_filtered_random_movie().pretty_print()
+        run()
     elif start == '2':
         year = input(year_prompt)
         audience = input(audience_prompt)
@@ -280,7 +295,8 @@ Select a rating on a scale of 10:
         genre = input(genre_prompt)
         rating = input(rating_prompt)
 
-        Movie.basic_filter_movies(year,audience,runtime,genre,tv,rating).pretty_print()
+        Movie.basic_filter_movies(year,audience,runtime,genre,rating).pretty_print()
+        run()
 
     else:
         exit()
