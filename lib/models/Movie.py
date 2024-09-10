@@ -2,54 +2,10 @@ import random
 import csv
 import sqlite3
 import re
+import prompts
 
 conn = sqlite3.connect('imdb_movies.db')
 cursor = conn.cursor()
-
-def create_movies_table():
-
-    sql = """
-        CREATE TABLE IF NOT EXISTS movies (
-        id INTEGER PRIMARY KEY,
-        title TEXT,
-        year TEXT,
-        certificate TEXT,
-        duration TEXT,
-        genre TEXT,
-        rating INTEGER,
-        description TEXT,
-        stars TEXT,
-        votes INTEGER,
-        start_year INTEGER,
-        end_year INTEGER,
-        runtime INTEGER
-        )
-    """
-    cursor.execute(sql)
-    with open('./lib/IMDB.csv','r') as fin:
-        dr = csv.DictReader(fin)
-        to_db = [[i['title'], i['year'],i['certificate'],i['duration'],i['genre'],i['rating'],i['description'],i['stars'],i['votes']] for i in dr]
-        
-        #clean year and duration columns
-        for row in to_db:
-            re_year = re.findall(r'\d+',row[1])
-            if len(re_year) == 1:
-                row.append(int(re_year[0]))
-                row.append(int(re_year[0]))
-            elif len(re_year) > 1:
-                row.append(int(re_year[0]))
-                row.append(int(re_year[1]))
-            else:
-                row.append(0)
-                row.append(0)
-            
-            if len(row[3]) > 0:
-                row.append(int(row[3].replace(" min","")))
-            else:
-                row.append(0)
-
-    cursor.executemany("INSERT INTO movies (title,year,certificate,duration,genre,rating,description,stars,votes,start_year,end_year,runtime) VALUES (?, ?,?,?,?,?,?,?,?,?,?,?);", tuple(to_db))
-    conn.commit()
 
 class Movie:
     def __init__(self,id,title,year,certificate,duration,genre,rating,description,stars,votes,start_year,end_year,runtime):
@@ -57,7 +13,7 @@ class Movie:
         self.title = title
         self.year = year
         self.certificate = certificate
-        self.duration = duration,
+        self.duration = duration
         self.genre = genre
         self.rating = rating
         self.description = description
@@ -66,6 +22,78 @@ class Movie:
         self.start_year = start_year
         self.end_year = end_year
         self.runtime = runtime
+
+    @classmethod
+    def create_movies_table(cls):
+        sql = """
+            CREATE TABLE IF NOT EXISTS movies (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            year TEXT,
+            certificate TEXT,
+            duration TEXT,
+            genre TEXT,
+            rating INTEGER,
+            description TEXT,
+            stars TEXT,
+            votes INTEGER,
+            start_year INTEGER,
+            end_year INTEGER,
+            runtime INTEGER
+            )
+        """
+        cursor.execute(sql)
+        with open('./lib/IMDB.csv','r') as fin:
+            dr = csv.DictReader(fin)
+            to_db = [[i['title'], i['year'],i['certificate'],i['duration'],i['genre'],i['rating'],i['description'],i['stars'],i['votes']] for i in dr]
+            
+            #clean year column
+            for row in to_db:
+                re_year = re.findall(r'\d+',row[1])
+                if len(re_year) == 1:
+                    row.append(int(re_year[0]))
+                    row.append(int(re_year[0]))
+                elif len(re_year) > 1:
+                    row.append(int(re_year[0]))
+                    row.append(int(re_year[1]))
+                else:
+                    row.append(0)
+                    row.append(0)
+
+                #clean duration column
+                if len(row[3]) > 0:
+                    row.append(int(row[3].replace(" min","")))
+                else:
+                    row.append(0)
+
+                #clean description
+                row[6] = row[6].replace('See full summary','')
+                row[6] = row[6].replace('»','')
+
+        cursor.executemany("INSERT INTO movies (title,year,certificate,duration,genre,rating,description,stars,votes,start_year,end_year,runtime) VALUES (?, ?,?,?,?,?,?,?,?,?,?,?);", tuple(to_db))
+        conn.commit()
+
+    @classmethod
+    def create_user_ratings_table(cls):
+        sql = """
+        CREATE TABLE IF NOT EXISTS user_ratings (
+        id INTEGER PRIMARY KEY,
+        username TEXT,
+        movie_id INTEGER,
+        rating INTEGER)
+        """
+        cursor.execute(sql)
+        conn.commit()
+    
+    def add_rating_to_table(self,new_username,new_rating):
+        sql = f"""
+        INSERT INTO user_ratings (username,movie_id,rating) 
+        VALUES (?,?,?)
+        """
+        cursor.execute(sql,(new_username,self.id,new_rating))
+        conn.commit()
+
+
     
     def pretty_print(self):
         if self.start_year == self.end_year:
@@ -76,17 +104,24 @@ class Movie:
         if self.runtime == 0:
             runtime = ""
         else:
-            runtime = str(self.runtime) + " min"
+            runtime = ", " + str(self.runtime) + " min"
+
+        if self.certificate == "":
+            certificate = ""
+        else:
+            certificate = ", " + self.certificate
+
         print(f"""
 Title: {self.title}
 Description: {self.description}
 Rating: {self.rating}
-{year}, {self.certificate}, {self.runtime} min
+{year}{certificate}{runtime}
 {self.genre}
         """)
 
     @classmethod
     def get_filtered_table_random_id(cls,filter=""):
+        print(filter)
         if filter == "":
             sql_count = "SELECT COUNT(*) FROM movies"
             sql_query = "SELECT id FROM movies"
@@ -101,13 +136,10 @@ Rating: {self.rating}
         else:
             random_num = random.randint(0,table_len-1)
             id_list = cursor.execute(sql_query).fetchall()
-            print(id_list)
-            print(random_num)
             return id_list[random_num][0]
 
     @classmethod
-    def get_filtered_random_movie(cls):
-        random_num = Movie.get_filtered_table_random_id()
+    def get_filtered_random_movie(cls,random_num):
 
         sql = """
             SELECT *
@@ -115,9 +147,9 @@ Rating: {self.rating}
             WHERE id = ?
         """
         random_movie = cursor.execute(sql,[random_num]).fetchone()
-        #fix below to do in loop
-        #random_movie_obj = Movie(random_num,random_movie)
-        random_movie_obj = Movie(id=random_num,title=random_movie[1],year=random_movie[2],certificate = random_movie[3], duration = random_movie[4], genre = random_movie[5], rating = random_movie[6],description =random_movie[7],stars=random_movie[8],votes=random_movie[9], start_year=random_movie[10],end_year=random_movie[11],runtime = random_movie[12])
+        random_movie_obj = Movie(id=random_movie[0],title=random_movie[1],year=random_movie[2],certificate = random_movie[3],\
+        duration = random_movie[4], genre = random_movie[5], rating = random_movie[6],description =random_movie[7],\
+        stars=random_movie[8],votes=random_movie[9], start_year=random_movie[10],end_year=random_movie[11],runtime = random_movie[12])
         return random_movie_obj
 
   
@@ -183,11 +215,11 @@ Rating: {self.rating}
         if rating == '1':
             rating_filter = "(rating >= 9)"
         elif rating == '2':
-            rating_filter = "(rating >= 8 AND rating < 9)"
+            rating_filter = "(rating >= 8)"
         elif rating == '3':
-            rating_filter = "(rating >= 7 AND rating < 8)"
+            rating_filter = "(rating >= 7)"
         elif rating == '4':
-            rating_filter = "(rating >= 6 AND rating < 7)"
+            rating_filter = "(rating >= 6)"
         elif rating == '5':
             rating_filter = "(rating < 6)"
         else:
@@ -205,88 +237,56 @@ Rating: {self.rating}
         if len(rating_filter)> 0:
             filter.append(rating_filter)
         
-        filter_string = filter[0]
-        for f in filter[1::]:
-            filter_string += (" AND " + f)
-        
-        print(filter_string)
-        
-        random_num = Movie.get_filtered_table_random_id(filter_string)
+        if len(filter) > 0:
+            filter_string = filter[0]
+            for f in filter[1::]:
+                filter_string += (" AND " + f)
+        else:
+            filter_string = ""
 
-        return Movie.get_filtered_random_movie()
+        return filter_string
 
 
     @classmethod
     def advanced_filter_movies(self,title,description,stars):
-        pass
+        #make not case sensitive
+        filter = []
+        if title != '0':
+            filter.append(f"(LOWER(title) LIKE LOWER('%{title}%'))")
+        if description != '0':
+            filter.append(f"(LOWER(description) LIKE LOWER('%{description}%'))")
+        if stars != '0':
+            filter.append(f"(LOWER(stars) LIKE LOWER('%{stars}%'))")
+        
+        if len(filter) == 0:
+            advanced_filter_string = ""
+        else:
+            advanced_filter_string = filter[0]
+            if len(filter) > 1:
+                for x in filter[1::]:
+                    advanced_filter_string += ' AND ' + x
+        
+        return advanced_filter_string
+    
+
+    def add_log(self):
+
+  
+        username = input(username_prompt)
+        rating = input(my_rating_prompt)
+        self.add_rating_to_table(username,rating)
 
 def run():
-    start_prompt = """
-Select an option below:
-1. Select a random movie
-2. Give my preferences
-3. Quit
-
->>"""
-
-    year_prompt = """
-Select a time period below:
-1. Pre 1990
-2. 1990-2000
-3. 2000-2010
-4. 2010-2020
-5. Post 2020
-6. No preference
-
->>"""
-
-    audience_prompt = """
-Select an audience:
-1. Kids
-2. Mature
-3. Explicit
-4. No preference
-
->>"""
-
-    runtime_prompt = """
-Select a runtime:
-1. 60 min or less
-2. 2 hrs or less
-3. 2.5hrs or less
-4. More than 2.5hrs
-5. No preference
-
->>"""
-
-    genre_prompt = """
-Select a genre:
-1. Comedy
-2. Drama
-3. Action
-4. Romance
-5. Thriller
-6. Horror
-7. Musical
-8. No preference
-
->>"""
-
-    rating_prompt = """
-Select a rating on a scale of 10:
-1. 9+
-2. 8+
-3. 7+
-4. 6+
-5. Below 6
-6. No preference
-
->>"""
 
     start = input(start_prompt)
 
     if start == '1':
-        Movie.get_filtered_random_movie().pretty_print()
+        my_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id())
+        my_movie.pretty_print()
+        log = input(log_prompt)
+        if log == 'y':
+            my_movie.add_log()
+
         run()
     elif start == '2':
         year = input(year_prompt)
@@ -295,13 +295,102 @@ Select a rating on a scale of 10:
         genre = input(genre_prompt)
         rating = input(rating_prompt)
 
-        Movie.basic_filter_movies(year,audience,runtime,genre,rating).pretty_print()
+        advanced_filter = input(advanced_filter_prompt)
+
+        if advanced_filter == '1':
+            title = input(title_prompt)
+            description = input(description_prompt)
+            stars = input(stars_prompt)
+            advanced_filter_string = Movie.advanced_filter_movies(title,description,stars)
+        else:
+            advanced_filter_string = ""
+
+        basic_filter_string = Movie.basic_filter_movies(year,audience,runtime,genre,rating)
+        
+        if len(advanced_filter_string) > 0 and len(basic_filter_string) > 0:
+            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(basic_filter_string + ' AND ' + advanced_filter_string))
+        elif len(advanced_filter_string) > 0 and len(basic_filter_string) == 0:
+            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(advanced_filter_string))
+        elif len(advanced_filter_string) == 0 and len(basic_filter_string) > 0:
+            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(basic_filter_string))
+        else:
+            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id())
+
+        
+        random_movie.pretty_print()
+
+        log = input(log_prompt)
+        if log == 'y':
+            random_movie.add_log()
+
+        run()
+    
+    elif start == '3':
+        #log movie
+        movie_title = input(log_title_prompt)
+        sql = f"""
+        SELECT id, title
+        FROM movies
+        WHERE LOWER(title) LIKE LOWER('%{movie_title}%')
+        """
+        print(cursor.execute(sql).fetchall())
+
+        select_movie = input(movie_selection_prompt)
+
+        sql_movie_selection = f"""
+        SELECT *
+        FROM movies
+        WHERE LOWER(title) LIKE LOWER('%{movie_title}%') AND id = {select_movie}
+        """
+
+        movie_selection = cursor.execute(sql_movie_selection).fetchone()
+        print(movie_selection)
+
+        movie_to_rate = Movie(id=movie_selection[0],title=movie_selection[1],year=movie_selection[2],certificate = movie_selection[3],\
+        duration = movie_selection[4], genre = movie_selection[5], rating = movie_selection[6],description =movie_selection[7],\
+        stars=movie_selection[8],votes=movie_selection[9], start_year=movie_selection[10],end_year=movie_selection[11],runtime = movie_selection[12])
+
+        username = input(username_prompt)
+
+        rating = input(my_rating_prompt)
+
+        movie_to_rate.add_rating_to_table(username,rating)
+
+        run()
+    
+    elif start =='4':
+        #pull up list of movies
+        username = input(username_prompt)
+        #query user_ratings table for specific username and JOIN with movies table
+        sql = f"""
+        SELECT movies.title,user_ratings.rating
+        FROM user_ratings
+        INNER JOIN movies ON user_ratings.movie_id = movies.id
+        WHERE username = '{username}'
+        """
+
+        my_movies = cursor.execute(sql).fetchall()
+
+        
+        if len(my_movies) == 0:
+            raise ValueError("Please enter an existing username or log a movie with a new username")
+
+        else:
+            print(my_movies) # make pretty print
+
         run()
 
     else:
         exit()
 
-if __name__ == '__main__':
-    run()
 
-#if time can create own table of user watched movies and favorites
+if __name__ == '__main__':
+    #run create tables if doesn't exist?
+    run()
+    
+
+#what if wrong inputs are given??
+#format my movies better and list from log movie
+#refactor to have cli.py and Movie.py
+
+
