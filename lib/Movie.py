@@ -122,7 +122,7 @@ Rating: {self.rating}
     #return a random id for a subset of movies table with given filters applied
     @classmethod
     def get_filtered_table_random_id(cls,filter=""):
-        print(filter)
+        #print(filter)
         if filter == "":
             sql_count = "SELECT COUNT(*) FROM movies"
             sql_query = "SELECT id FROM movies"
