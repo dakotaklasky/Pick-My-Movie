@@ -48,11 +48,15 @@ class Movie:
             certificate = ""
         else:
             certificate = ", " + self.certificate
+        if self.rating == "":
+            rating = "No rating available"
+        else:
+            rating = self.rating
 
         print(f"""
 Title: {self.title}
 Description: {self.description}
-Rating: {self.rating}
+Rating: {rating}
 {year}{certificate}{runtime}
 {self.genre}
         """)
