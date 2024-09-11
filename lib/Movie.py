@@ -2,7 +2,7 @@ import random
 import csv
 import sqlite3
 import re
-import prompts
+
 
 conn = sqlite3.connect('imdb_movies.db')
 cursor = conn.cursor()
@@ -22,6 +22,38 @@ class Movie:
         self.start_year = start_year
         self.end_year = end_year
         self.runtime = runtime
+    
+    def add_rating_to_table(self,new_username,new_rating):
+        sql = f"""
+        INSERT INTO user_ratings (username,movie_id,rating) 
+        VALUES (?,?,?)
+        """
+        cursor.execute(sql,(new_username,self.id,new_rating))
+        conn.commit()
+
+    def pretty_print(self):
+        if self.start_year == self.end_year:
+            year = self.start_year
+        else:
+            year = f"{self.start_year} - {self.end_year}"
+
+        if self.runtime == 0:
+            runtime = ""
+        else:
+            runtime = ", " + str(self.runtime) + " min"
+
+        if self.certificate == "":
+            certificate = ""
+        else:
+            certificate = ", " + self.certificate
+
+        print(f"""
+Title: {self.title}
+Description: {self.description}
+Rating: {self.rating}
+{year}{certificate}{runtime}
+{self.genre}
+        """)
 
     @classmethod
     def create_movies_table(cls):
@@ -84,40 +116,6 @@ class Movie:
         """
         cursor.execute(sql)
         conn.commit()
-    
-    def add_rating_to_table(self,new_username,new_rating):
-        sql = f"""
-        INSERT INTO user_ratings (username,movie_id,rating) 
-        VALUES (?,?,?)
-        """
-        cursor.execute(sql,(new_username,self.id,new_rating))
-        conn.commit()
-
-
-    
-    def pretty_print(self):
-        if self.start_year == self.end_year:
-            year = self.start_year
-        else:
-            year = f"{self.start_year} - {self.end_year}"
-
-        if self.runtime == 0:
-            runtime = ""
-        else:
-            runtime = ", " + str(self.runtime) + " min"
-
-        if self.certificate == "":
-            certificate = ""
-        else:
-            certificate = ", " + self.certificate
-
-        print(f"""
-Title: {self.title}
-Description: {self.description}
-Rating: {self.rating}
-{year}{certificate}{runtime}
-{self.genre}
-        """)
 
     @classmethod
     def get_filtered_table_random_id(cls,filter=""):
@@ -152,7 +150,6 @@ Rating: {self.rating}
         stars=random_movie[8],votes=random_movie[9], start_year=random_movie[10],end_year=random_movie[11],runtime = random_movie[12])
         return random_movie_obj
 
-  
     @classmethod
     def basic_filter_movies(self,year,certificate,runtime,genre,rating):
 
@@ -246,7 +243,6 @@ Rating: {self.rating}
 
         return filter_string
 
-
     @classmethod
     def advanced_filter_movies(self,title,description,stars):
         #make not case sensitive
@@ -268,129 +264,35 @@ Rating: {self.rating}
         
         return advanced_filter_string
     
-
-    def add_log(self):
-
-  
-        username = input(username_prompt)
-        rating = input(my_rating_prompt)
-        self.add_rating_to_table(username,rating)
-
-def run():
-
-    start = input(start_prompt)
-
-    if start == '1':
-        my_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id())
-        my_movie.pretty_print()
-        log = input(log_prompt)
-        if log == 'y':
-            my_movie.add_log()
-
-        run()
-    elif start == '2':
-        year = input(year_prompt)
-        audience = input(audience_prompt)
-        runtime = input(runtime_prompt)
-        genre = input(genre_prompt)
-        rating = input(rating_prompt)
-
-        advanced_filter = input(advanced_filter_prompt)
-
-        if advanced_filter == '1':
-            title = input(title_prompt)
-            description = input(description_prompt)
-            stars = input(stars_prompt)
-            advanced_filter_string = Movie.advanced_filter_movies(title,description,stars)
-        else:
-            advanced_filter_string = ""
-
-        basic_filter_string = Movie.basic_filter_movies(year,audience,runtime,genre,rating)
-        
-        if len(advanced_filter_string) > 0 and len(basic_filter_string) > 0:
-            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(basic_filter_string + ' AND ' + advanced_filter_string))
-        elif len(advanced_filter_string) > 0 and len(basic_filter_string) == 0:
-            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(advanced_filter_string))
-        elif len(advanced_filter_string) == 0 and len(basic_filter_string) > 0:
-            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id(basic_filter_string))
-        else:
-            random_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id())
-
-        
-        random_movie.pretty_print()
-
-        log = input(log_prompt)
-        if log == 'y':
-            random_movie.add_log()
-
-        run()
-    
-    elif start == '3':
-        #log movie
-        movie_title = input(log_title_prompt)
+    @classmethod
+    def get_movies_from_title(cls,title):
         sql = f"""
         SELECT id, title
         FROM movies
-        WHERE LOWER(title) LIKE LOWER('%{movie_title}%')
+        WHERE LOWER(title) LIKE LOWER('%{title}%')
         """
-        print(cursor.execute(sql).fetchall())
-
-        select_movie = input(movie_selection_prompt)
-
+        return cursor.execute(sql).fetchall()
+    
+    @classmethod
+    def select_movie_id(cls,title,id):
         sql_movie_selection = f"""
         SELECT *
         FROM movies
-        WHERE LOWER(title) LIKE LOWER('%{movie_title}%') AND id = {select_movie}
+        WHERE LOWER(title) LIKE LOWER('%{title}%') AND id = {id}
         """
-
-        movie_selection = cursor.execute(sql_movie_selection).fetchone()
-        print(movie_selection)
-
-        movie_to_rate = Movie(id=movie_selection[0],title=movie_selection[1],year=movie_selection[2],certificate = movie_selection[3],\
-        duration = movie_selection[4], genre = movie_selection[5], rating = movie_selection[6],description =movie_selection[7],\
-        stars=movie_selection[8],votes=movie_selection[9], start_year=movie_selection[10],end_year=movie_selection[11],runtime = movie_selection[12])
-
-        username = input(username_prompt)
-
-        rating = input(my_rating_prompt)
-
-        movie_to_rate.add_rating_to_table(username,rating)
-
-        run()
+        return cursor.execute(sql_movie_selection).fetchone()
     
-    elif start =='4':
-        #pull up list of movies
-        username = input(username_prompt)
-        #query user_ratings table for specific username and JOIN with movies table
+    @classmethod
+    def get_user_ratings(cls,username):
         sql = f"""
         SELECT movies.title,user_ratings.rating
         FROM user_ratings
         INNER JOIN movies ON user_ratings.movie_id = movies.id
         WHERE username = '{username}'
         """
-
-        my_movies = cursor.execute(sql).fetchall()
-
-        
-        if len(my_movies) == 0:
-            raise ValueError("Please enter an existing username or log a movie with a new username")
-
-        else:
-            print(my_movies) # make pretty print
-
-        run()
-
-    else:
-        exit()
-
-
-if __name__ == '__main__':
-    #run create tables if doesn't exist?
-    run()
+        return cursor.execute(sql).fetchall()
     
 
-#what if wrong inputs are given??
-#format my movies better and list from log movie
-#refactor to have cli.py and Movie.py
+
 
 
