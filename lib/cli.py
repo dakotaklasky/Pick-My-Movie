@@ -1,10 +1,11 @@
 # lib/cli.py
 from Movie import Movie
 import prompts as p
+from tabulate import tabulate
 
 def run():
     start = input(p.start_prompt)
-
+    #show random movie with no filters
     if start == '1':
         my_movie = Movie.get_filtered_random_movie(Movie.get_filtered_table_random_id())
         my_movie.pretty_print()
@@ -13,8 +14,9 @@ def run():
             username = input(p.username_prompt)
             rating = input(p.my_rating_prompt)
             my_movie.add_rating_to_table(username,rating)
-
         run()
+    
+    #return random movie with given filters
     elif start == '2':
         year = input(p.year_prompt)
         audience = input(p.audience_prompt)
@@ -54,15 +56,15 @@ def run():
 
         run()
     
+    #log a movie with given word or phrase in title
     elif start == '3':
-        #log movie
         movie_title = input(p.log_title_prompt)
         filtered_movies = Movie.get_movies_from_title(movie_title)
 
         if len(filtered_movies) == 0:
             raise ValueError("There are no results that match. Please use a different key word")
         else:
-            print(filtered_movies)
+            print(tabulate(filtered_movies, headers=["Id","Title"], tablefmt="grid"))
 
         select_movie = input(p.movie_selection_prompt)
         movie_selection = Movie.select_movie_id(movie_title,select_movie)
@@ -74,27 +76,24 @@ def run():
         username = input(p.username_prompt)
         rating = input(p.my_rating_prompt)
         movie_to_rate.add_rating_to_table(username,rating)
-
         run()
     
+    #show all rated movies for given username
     elif start =='4':
         username = input(p.username_prompt)
         my_movies = Movie.get_user_ratings(username)
         
         if len(my_movies) == 0:
             raise ValueError("Please enter an existing username or log a movie with a new username")
-
         else:
-            print(my_movies) # make pretty print
+            print(tabulate(my_movies, headers=["Rating","Title"], tablefmt="grid"))
 
         run()
-
     else:
         exit()
-
 
 if __name__ == '__main__':
     run()
 
-#format my movies better and list from log movie
-#comments
+#rename repo and python project
+#pipfile look ok?

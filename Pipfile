@@ -8,6 +8,7 @@ ipdb = "*"
 faker = "*"
 pytest = "7.1.3"
 requests = "*"
+tabulate = "*"
 
 [dev-packages]
 

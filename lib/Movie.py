@@ -23,6 +23,7 @@ class Movie:
         self.end_year = end_year
         self.runtime = runtime
     
+    #user can add rating to user_ratings table for given movie
     def add_rating_to_table(self,new_username,new_rating):
         sql = f"""
         INSERT INTO user_ratings (username,movie_id,rating) 
@@ -31,6 +32,7 @@ class Movie:
         cursor.execute(sql,(new_username,self.id,new_rating))
         conn.commit()
 
+    #print movie in readable format to display to user
     def pretty_print(self):
         if self.start_year == self.end_year:
             year = self.start_year
@@ -117,6 +119,7 @@ Rating: {self.rating}
         cursor.execute(sql)
         conn.commit()
 
+    #return a random id for a subset of movies table with given filters applied
     @classmethod
     def get_filtered_table_random_id(cls,filter=""):
         print(filter)
@@ -136,6 +139,7 @@ Rating: {self.rating}
             id_list = cursor.execute(sql_query).fetchall()
             return id_list[random_num][0]
 
+    #return a movie object from a given random index
     @classmethod
     def get_filtered_random_movie(cls,random_num):
 
@@ -150,9 +154,9 @@ Rating: {self.rating}
         stars=random_movie[8],votes=random_movie[9], start_year=random_movie[10],end_year=random_movie[11],runtime = random_movie[12])
         return random_movie_obj
 
+    #create basic filter string to use in sql query given user inputs
     @classmethod
     def basic_filter_movies(self,year,certificate,runtime,genre,rating):
-
         #year filter
         if year == '1':
             year_filter = "(end_year <= 1990)"
@@ -243,6 +247,7 @@ Rating: {self.rating}
 
         return filter_string
 
+    #create advanced filter string to use in sql query given user inputs
     @classmethod
     def advanced_filter_movies(self,title,description,stars):
         #make not case sensitive
@@ -263,7 +268,8 @@ Rating: {self.rating}
                     advanced_filter_string += ' AND ' + x
         
         return advanced_filter_string
-    
+
+    #return all movies that include given title word or phrase
     @classmethod
     def get_movies_from_title(cls,title):
         sql = f"""
@@ -274,6 +280,18 @@ Rating: {self.rating}
         return cursor.execute(sql).fetchall()
     
     @classmethod
+    def pretty_print_titles(cls,movie_list):
+        ids = []
+        titles = []
+        for x in movie_list:
+            ids.append(x[0])
+            titles.append(x[1])
+        print(f"""
+
+        """)
+    
+    #return movies that include given title or word phrase and match given id
+    @classmethod
     def select_movie_id(cls,title,id):
         sql_movie_selection = f"""
         SELECT *
@@ -282,10 +300,11 @@ Rating: {self.rating}
         """
         return cursor.execute(sql_movie_selection).fetchone()
     
+    #return all ratings for given username
     @classmethod
     def get_user_ratings(cls,username):
         sql = f"""
-        SELECT movies.title,user_ratings.rating
+        SELECT user_ratings.rating, movies.title
         FROM user_ratings
         INNER JOIN movies ON user_ratings.movie_id = movies.id
         WHERE username = '{username}'
