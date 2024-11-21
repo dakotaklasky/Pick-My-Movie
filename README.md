@@ -1,4 +1,4 @@
-# Phase 3 Project - Pick My Movie
+# Pick My Movie
 
 ## Introduction
 
